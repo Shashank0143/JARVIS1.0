@@ -1,0 +1,89 @@
+{
+  "https://www.geeksforgeeks.org/python/file-handling-python/": {
+    "title": "File Handling in Python - GeeksforGeeks",
+    "topic": "python file handling",
+    "domain": "geeksforgeeks.org",
+    "chunks": 9,
+    "tokens": 1395,
+    "time": 1779135637
+  },
+  "https://docs.pytorch.org/tutorials/index.html": {
+    "title": "PyTorch tutorial: https://docs.pytorch.org/tutorials/index.html",
+    "topic": "PyTorch tutorial",
+    "domain": "docs.pytorch.org",
+    "dataset_file": "datasets\\training_corpus\\pytorch_tutorials\\docs.pytorch.org_tutorials_index.html.md",
+    "chunks": 26,
+    "tokens": 3419,
+    "time": 1779137138
+  },
+  "https://docs.pytorch.org/tutorials/genindex.html": {
+    "title": "PyTorch tutorial: https://docs.pytorch.org/tutorials/genindex.html",
+    "topic": "PyTorch tutorial",
+    "domain": "docs.pytorch.org",
+    "dataset_file": "datasets\\training_corpus\\pytorch_tutorials\\docs.pytorch.org_tutorials_genindex.html.md",
+    "chunks": 15,
+    "tokens": 1869,
+    "time": 1779137140
+  },
+  "https://docs.pytorch.org/tutorials/search.html": {
+    "title": "PyTorch tutorial: https://docs.pytorch.org/tutorials/search.html",
+    "topic": "PyTorch tutorial",
+    "domain": "docs.pytorch.org",
+    "dataset_file": "datasets\\training_corpus\\pytorch_tutorials\\docs.pytorch.org_tutorials_search.html.md",
+    "chunks": 15,
+    "tokens": 1859,
+    "time": 1779137141
+  },
+  "https://docs.pytorch.org/tutorials/intro.html": {
+    "title": "PyTorch tutorial: https://docs.pytorch.org/tutorials/intro.html",
+    "topic": "PyTorch tutorial",
+    "domain": "docs.pytorch.org",
+    "dataset_file": "datasets\\training_corpus\\pytorch_tutorials\\docs.pytorch.org_tutorials_intro.html.md",
+    "chunks": 18,
+    "tokens": 2291,
+    "time": 1779137187
+  },
+  "https://docs.pytorch.org/tutorials/beginner/basics/intro.html": {
+    "title": "PyTorch tutorial: https://docs.pytorch.org/tutorials/beginner/basics/intro.html",
+    "topic": "PyTorch tutorial",
+    "domain": "docs.pytorch.org",
+    "dataset_file": "datasets\\training_corpus\\pytorch_tutorials\\docs.pytorch.org_tutorials_beginner_basics_intro.html.md",
+    "chunks": 20,
+    "tokens": 2536,
+    "time": 1779137188
+  },
+  "https://docs.pytorch.org/tutorials/beginner/introyt/introyt_index.html": {
+    "title": "PyTorch tutorial: https://docs.pytorch.org/tutorials/beginner/introyt/introyt_index.html",
+    "topic": "PyTorch tutorial",
+    "domain": "docs.pytorch.org",
+    "dataset_file": "datasets\\training_corpus\\pytorch_tutorials\\docs.pytorch.org_tutorials_beginner_introyt_introyt_index.html.md",
+    "chunks": 19,
+    "tokens": 2355,
+    "time": 1779137189
+  },
+  "https://docs.pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html": {
+    "title": "PyTorch tutorial: https://docs.pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html",
+    "topic": "PyTorch tutorial",
+    "domain": "docs.pytorch.org",
+    "dataset_file": "datasets\\training_corpus\\pytorch_tutorials\\docs.pytorch.org_tutorials_beginner_deep_learning_60min_blitz.html.md",
+    "chunks": 19,
+    "tokens": 2346,
+    "time": 1779137191
+  },
+  "https://www.geeksforgeeks.org/blogs/tell-me-about-yourself-interview-sample/": {
+    "title": "How to Answer \"Tell Me About Yourself\" in an Interview?",
+    "topic": "tell me about youself",
+    "domain": "geeksforgeeks.org",
+    "chunks": 15,
+    "tokens": 2159,
+    "time": 1779540961
+  },
+  "https://www.geeksforgeeks.org/videos/how-to-answer-tell-me-about-yourself-in-an-interview/": {
+    "title": "How to Answer \"Tell Me About Yourself\" in an Interview?",
+    "topic": "tell me about youself",
+    "domain": "geeksforgeeks.org",
+    "chunks": 4,
+    "tokens": 664,
+    "time": 1779540963
+  }
+}

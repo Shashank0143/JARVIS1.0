@@ -1,0 +1,1 @@
+The quadratic formula solves ax squared plus bx plus c equals zero using x equals negative b plus or minus square root of b squared minus four a c divided by two a.

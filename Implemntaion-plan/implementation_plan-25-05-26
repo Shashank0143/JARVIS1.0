@@ -1,0 +1,531 @@
+# Upgrading JARVIS AI to a Production-Grade Conversational Assistant
+
+This document outlines the comprehensive system redesign and architectural upgrade for the JARVIS AI codebase. It replaces the current rule-based keyword-matching and raw vector-dump fallback mechanics with a production-grade, state-of-the-art conversational AI agent architecture similar to ChatGPT.
+
+---
+
+## What is Wrong with the Current Architecture?
+
+1. **Rule-Based Retrieval Bypassing**: In `jarvis_ai/core.py`, the method `_answer_local_first` checks if there are RAG search hits with a score of `>= 0.32`. If true, it immediately prints raw vector-database chunks directly to the user (e.g., `- Title: Text`), completely bypassing the LLM!
+2. **Deterministic Hardcoded Conversational Routing**: The `ConversationAgent` contains a static Python dictionary `self.responses` of casual phrases (`hello`, `hi`, `how are you`, etc.). If a query doesn't match these strings, it falls back to printing the first two RAG search hits as `"I remember this: [excerpt]"` or prints a static fallback string. It does not synthesize natural, conversational responses.
+3. **Lack of Chat-Session Context & Memory**: The current system does not inject historical multi-turn conversation states (`[{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]`) into the model's prompt. The model sees every single question in isolation, preventing it from understanding references like "it", "that", "the previous code", or follow-up questions.
+4. **Synchronous Execution Blockers**: Operations are synchronous. In a production chatbot environment, synchronous requests to remote APIs or local heavy inference block the system thread, preventing real-time streaming tokens and making WebSockets or fast concurrent connections impossible.
+5. **No System Prompting or Persona Synthesis**: The local coding model completions in `local_model.py` and `assistant.py` rely on primitive prompts: `Question: {question}\n\nContext:\n{context}\n\nDetailed Answer:`. There is no core conversational system prompt defining JARVIS's role, behavioral boundaries, response styles, or synthesis criteria.
+
+---
+
+## Core Systems Design & Architectural Upgrades
+
+### 1. Why Retrieval-Only Systems Fail
+Retrieval-only systems function like index cards: they can find a matching card but cannot read between the lines, solve problems, write original code, or explain concepts in context. Real-world user queries are complex and dirty. If the exact answer isn't indexed, a retrieval-only system will print irrelevant chunks or throw a blank output.
+
+### 2. RAG vs. Conversational RAG (RAG-Synthesized AI)
+- **Basic RAG 1.0**: Retrieve documents $\rightarrow$ Dump raw chunks to screen (Current Jarvis).
+- **Conversational RAG (ChatGPT-Style)**: Retrieve documents $\rightarrow$ **Context Compression & Re-ranking** $\rightarrow$ **Conversational History Assembly** $\rightarrow$ **LLM Synthesis & Reasoning Loop** $\rightarrow$ **Streaming Human-like Response**.
+The LLM acts as the **reasoning engine** and the retriever acts as its **external memory**. The user never sees the raw retrieved chunks; they only see a beautifully crafted, coherent response that synthesizes the retrieved facts naturally.
+
+### 3. How ChatGPT-Style Systems Work Internally
+
+```
++---------------+      +-------------------+      +-----------------------+      +-------------------+
+|  User Query   | ---> |  Intent Routing   | ---> | Context Retrieval &   | ---> | Context & Memory  |
+|               |      |  & Tool Detection |      | Re-ranking (semantic) |      | Compression       |
++---------------+      +-------------------+      +-----------------------+      +-------------------+
+                                                                                           |
++---------------+      +-------------------+      +-----------------------+                v
+| User Chat     | <--- | Token Streaming   | <--- | LLM Reasoning &       | <--- +-------------------+
+| Interface     |      | Engine (SSE/WS)   |      | Synthesis (CoT)       |      | Prompt Assembly   |
++---------------+      +-------------------+      +-----------------------+      +-------------------+
+```
+
+---
+
+## User Review Required
+
+Before commencing the refactoring of files, please review the proposed architecture shift:
+
+> [!IMPORTANT]
+> - **Dependency Upgrade**: We will need to add `fastapi`, `uvicorn`, `websockets`, `chromadb` (or `faiss-cpu`), `sentence-transformers`, and `langchain-core` / `openai` (or `ollama`) to `requirements.txt`.
+> - **Deprecating Hardcoded Maps**: We will move away from static regex or dictionary lookups in `ConversationAgent` and transition fully to an LLM-driven generation loop with systemic prompting.
+> - **Async Transition**: The `JarvisCore` handle pipeline will be updated to be fully asynchronous (`async def handle`) to support multi-agent parallel execution, non-blocking tool calls, and streaming tokens.
+
+---
+
+## Open Questions
+
+> [!IMPORTANT]
+> 1. **Primary LLM Driver**: Do you want to run your local LLM exclusively via **Ollama** (which provides a standard OpenAI-compatible API locally), or should we build a robust direct interface using HuggingFace's **llama.cpp / vLLM**? *(Ollama is highly recommended for production stability and easy token streaming)*.
+> 2. **Interface Format**: Are we outputting this primarily to a terminal UI, or should we build a lightweight Web UI (HTML5/Vanilla CSS with glassmorphism aesthetics) served by a FastAPI backend?
+
+---
+
+## New Improved Folder Structure
+
+We will refactor the directory structure to separate the core service engines, agents, schemas, and UI web endpoints:
+
+```
+JARVIS/
+│
+├── corpus/                             # Structured text corpora for training / indexing
+├── data/                               # Local storage, sqlite db, chat history cache
+│   └── database.db                     # Session database (SQLite)
+│
+├── jarvis_ai/
+│   ├── __init__.py                     # Module initialization
+│   ├── main_core.py                    # Unified async coordinator (replacing core.py)
+│   │
+│   ├── api/                            # Web & HTTP Service Layer
+│   │   ├── __init__.py
+│   │   ├── server.py                   # FastAPI Application Server
+│   │   └── routes.py                   # WebSocket and REST endpoints for streaming
+│   │
+│   ├── agents/                         # Agent Mesh & Reasoning Engines
+│   │   ├── __init__.py
+│   │   ├── base.py                     # Base Agent Interface
+│   │   ├── router.py                   # Semantic LLM-based Intent Router (dynamic)
+│   │   ├── planner.py                  # Chain-of-Thought (CoT) / Reasoning Planner
+│   │   ├── coder.py                    # Dedicated Code Synthesis & Execution Agent
+│   │   ├── auditor.py                  # Vulnerability Scan Agent
+│   │   └── tester.py                   # Self-Healing Testing Agent
+│   │
+│   ├── models/                         # Local & Remote Inference Interface
+│   │   ├── __init__.py
+│   │   ├── base.py                     # LLM Model Interface
+│   │   ├── ollama_client.py            # Local Ollama client (quantized models)
+│   │   ├── hf_client.py                # Hugging Face Inference API client
+│   │   ├── local_transformer.py        # Custom lightweight PyTorch transformer
+│   │   └── embeddings.py               # Hugging Face SentenceTransformers wrapper
+│   │
+│   ├── memory/                         # Cognitive & Conversation State Management
+│   │   ├── __init__.py
+│   │   ├── short_term.py               # Rolling sliding window session memory
+│   │   ├── long_term.py                # Episodic / Semantic memory database
+│   │   └── manager.py                  # Core memory controller
+│   │
+│   ├── rag/                            # Retrieval-Augmented Generation Engine
+│   │   ├── __init__.py
+│   │   ├── vector_store.py             # ChromaDB / FAISS production wrapper
+│   │   ├── chunker.py                  # Recursive AST / Markdown-aware chunking
+│   │   ├── web_research.py             # Web researcher and web scraper
+│   │   └── reranker.py                 # Cross-encoder re-ranking pipeline
+│   │
+│   └── utils/                          # Common Utilities
+│       ├── __init__.py
+│       ├── config.py                   # System configuration (env variables)
+│       └── logger.py                   # Unified structlog/logging system
+│
+├── extra.py
+├── main.py                             # Upgraded CLI & startup wrapper
+├── requirements.txt                    # Modernized production requirements
+└── README.md
+```
+
+---
+
+## Sub-System Redesign Plans
+
+### 1. Memory Pipeline & Session State Management
+To support multi-turn reasoning, we need a unified memory pipeline.
+- **Short-Term Memory**: Stores a rolling sliding window of the last $N$ turns of the active session in SQLite or Redis.
+- **Long-Term Memory**: When a session closes, we run an async background job to summarize the session into key declarative facts (e.g., "User is working on a FastAPI project in Windows") and insert them into the Vector DB.
+- **Context Injection**: During query execution, the memory manager fetches active short-term history and matches relevant episodic long-term facts, stitching them into the system prompt.
+
+```
+                  +----------------------------------------------+
+                  |                 User Query                   |
+                  +----------------------------------------------+
+                                         |
+                                         v
+                 +-----------------------------------------------+
+                 |             Memory Manager                    |
+                 +-----------------------------------------------+
+                  /                                             \
+                 /                                               \
+                v                                                 v
+  +---------------------------+                     +---------------------------+
+  |  Short-Term (Rolling)     |                     |  Long-Term (Episodic)     |
+  |  Fetch last N messages    |                     |  Semantic vector search   |
+  +---------------------------+                     +---------------------------+
+                \                                                 /
+                 \                                               /
+                  v                                             v
+                 +-----------------------------------------------+
+                 |        Formatted System Chat Prompt           |
+                 +-----------------------------------------------+
+```
+
+### 2. High-Performance RAG & Re-ranking Redesign
+The current TF-IDF / fuzzy search in `rag.py` will be replaced by a production-grade dual-encoder hybrid retriever:
+- **Dense Retriever**: `SentenceTransformers` (`all-MiniLM-L6-v2`) inside a FAISS or ChromaDB index for rich semantic understanding.
+- **Sparse Retriever**: BM25 index on the raw text for exact matching (e.g., specific code keywords, class names, function names).
+- **Reranker (Cross-Encoder)**: We will feed the top-20 retrieved candidates and the user query into a lightweight Cross-Encoder (e.g., `BAAI/bge-reranker-base`) to score their relevance. Only the top-3 to top-5 highest-scoring compressed passages are passed to the LLM. This mitigates distraction and reduces LLM hallucination.
+
+```
+                  +----------------------------------------------+
+                  |                 User Query                   |
+                  +----------------------------------------------+
+                                  /              \
+                                 /                \
+                                v                  v
+                   +------------------+      +------------------+
+                   |  Dense Vector DB |      |   Sparse BM25    |
+                   |  (Chroma/FAISS)  |      |   Search Index   |
+                   +------------------+      +------------------+
+                                 \                /
+                                  \              /
+                                   v            v
+                               +------------------+
+                               | Hybrid Fusion &  | (RRF - Reciprocal
+                               | De-duplication   |  Rank Fusion)
+                               +------------------+
+                                        |  (Top-20 Chunks)
+                                        v
+                               +------------------+
+                               |   Cross-Encoder  | (Re-ranking
+                               |    Re-ranker     |  Pipeline)
+                               +------------------+
+                                        |  (Top-4 Compressed Chunks)
+                                        v
+                               +------------------+
+                               | LLM Synthesizer  |
+                               +------------------+
+```
+
+### 3. Intelligent Response Synthesis & System Prompting
+We will completely eliminate the direct printing of vector database hits. Instead, we implement a **System Prompting Strategy** that binds the LLM to behave like an elite software engineer.
+
+#### Redesigned System Prompt Template:
+```markdown
+You are JARVIS, an elite autonomous software architect and system developer. Your goal is to provide concise, accurate, and production-ready solutions.
+
+CONSTRAINTS & RULES:
+1. Ground your responses strictly in the provided Context and Conversation History.
+2. If the Context contains the code the user is asking about, base your answers on it.
+3. NEVER dump raw context snippets or list database files with raw scores unless explicitly requested. Synthesize the knowledge naturally as if you wrote it.
+4. If code is requested, provide clean, documented, modern Python/JS code blocks. Include error handling.
+5. If you do not know the answer, explain what is missing rather than fabricating facts.
+
+CONVERSATION HISTORY:
+{history}
+
+RETRIEVED CONTEXT REFERENCE:
+{context}
+
+USER QUERY:
+{query}
+
+Perform a deep step-by-step thinking process inside <reasoning> tags before delivering your final answer.
+```
+
+### 4. Multi-Agent Planning & Tool Framework
+To execute operations securely (running tests, audits, editing files), we introduce an async Tool Calling architecture. Instead of hardcoding commands like `write file <name> with <content>` into a regex parser, the LLM determines when to call a tool using JSON schema definitions.
+
+Available Tools:
+1. `read_workspace_file(path)`
+2. `write_workspace_file(path, content)`
+3. `run_security_audit(path)`
+4. `execute_unit_tests(target_file, test_file)`
+5. `search_internet(query)`
+
+---
+
+## Data Flow Diagram
+
+The following text diagram details the end-to-end processing of a user's instruction in the upgraded JARVIS AI:
+
+```
+[User Chat Room (Web / CLI)]
+            |
+            | (Query: "Optimize the database connection pool in my project")
+            v
+[Unified API Handler (FastAPI Router)]
+            |
+            v
+[Intent Router (LLM Semantic Check)]
+            |
+            +---> IF Casual/Conversational -> Direct LLM Chat Pipeline
+            |
+            +---> IF Action/Command Task -> [Autonomous Planner (CoT Agent)]
+                                                     |
+                                                     v
+                                       [Memory & RAG Search Manager]
+                                        - Retrieve from ChromaDB/BM25
+                                        - Re-rank via BGE-Reranker
+                                        - Fetch Short-Term History
+                                                     |
+                                                     v
+                                       [LLM Reasoning & Tool Decider]
+                                        - Evaluates query + context + tools
+                                        - Decision: Call `read_workspace_file`
+                                                     |
+                                                     v
+                                       [Secure Tool Executor Sandbox]
+                                        - Executes safe file read
+                                                     |
+                                                     v
+                                       [Response Generation Layer]
+                                        - Synthesizes findings
+                                        - Streams output back in real-time
+                                                     |
+                                                     v
+                                      [WebSockets/SSE Token Stream] ---> [User Interface]
+```
+
+---
+
+## Step-by-Step Execution Pipeline
+
+Here is the trace of how a request is processed under the hood:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User Chat Client
+    participant API as FastAPI / Server
+    participant Router as Intent Router
+    participant RAG as RAG & Re-ranking Engine
+    participant Mem as Memory Manager
+    participant LLM as LLM Engine (Ollama/HF)
+    participant Tools as Tool Executor
+
+    User->>API: Send input: "Fix bug in app.py"
+    API->>Mem: Fetch recent chat session history
+    Mem-->>API: Return [Turn 1, Turn 2]
+    API->>Router: Classify intent of user query
+    Router-->>API: Intent: Code Task / Bug Fix (Confidence: 0.98)
+    API->>RAG: Retrieve semantic context for "Fix bug in app.py"
+    RAG->>RAG: 1. Vector Search + BM25 Search
+    RAG->>RAG: 2. Cross-Encoder Re-ranking
+    RAG-->>API: Return Top-3 Compressed Code Chunks
+    API->>LLM: Stream Prompt: System Prompt + History + Context + Query
+    activate LLM
+    LLM->>LLM: Internal reasoning & Chain-of-thought analysis
+    LLM-->>API: Yield Token: "<reasoning>Analyzing app.py..."
+    API-->>User: Stream token to frontend UI
+    LLM->>LLM: Decide to call tool: "read_workspace_file('app.py')"
+    LLM-->>API: Return tool call request
+    deactivate LLM
+    API->>Tools: Execute: read_workspace_file('app.py')
+    Tools-->>API: Return content of app.py
+    API->>LLM: Supply tool output & resume generation
+    activate LLM
+    LLM->>LLM: Synthesize bug fix
+    LLM-->>API: Yield Token: "Here is the corrected database connection function..."
+    API-->>User: Stream final response tokens
+    deactivate LLM
+    API->>Mem: Save User & Assistant response to SQLite
+    API->>User: Complete connection
+```
+
+---
+
+## Example of BAD Output vs. GOOD Output
+
+### Current System (BAD Output)
+```
+User: create a python server script
+
+Jarvis:
+I found this in my local memory:
+- file: jarvis_ai/web.py | score=0.34
+  class WebResearcher:
+      def fetch_text(self, url):
+          return requests.get(url).text
+- file: main.py | score=0.32
+  elif args.command == "learn-web":
+      core = JarvisCore()
+
+Status: Internet research completed.
+```
+*Why this is bad: It returns disconnected code blocks that do not answer the user's prompt, dumps raw indexing data and files, and has no conversational intelligence.*
+
+---
+
+### Upgraded System (GOOD Output)
+```
+User: create a python server script
+
+Jarvis:
+<reasoning>
+The user is asking to create a Python server script. I should provide a modern, production-ready asynchronous Python server script using FastAPI. I will include a brief, clean explanation and not dump raw search coordinates.
+</reasoning>
+
+Here is a robust, production-ready Python server script using **FastAPI** and **Uvicorn**. This server includes built-in logging, error handling, and support for asynchronous endpoints:
+
+```python
+import logging
+from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
+import uvicorn
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("JarvisServer")
+
+app = FastAPI(
+    title="Jarvis Production Server",
+    description="A high-performance asynchronous API server",
+    version="1.0.0"
+)
+
+class Item(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+
+@app.get("/health", status_code=status.HTTP_200_OK)
+async def health_check():
+    """Liveness probe to check server status."""
+    logger.info("Health check endpoint pinged.")
+    return {"status": "healthy", "service": "jarvis-backend"}
+
+@app.post("/items", status_code=status.HTTP_201_CREATED)
+async def create_item(item: Item):
+    """Asynchronous endpoint to receive and log JSON payload data."""
+    if item.price <= 0:
+        logger.error(f"Validation failed: Price must be positive. Got {item.price}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Item price must be greater than zero."
+        )
+    logger.info(f"Item created successfully: {item.name}")
+    return {"message": f"Item '{item.name}' saved successfully.", "item": item}
+
+if __name__ == "__main__":
+    # Run server locally on port 8000
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+```
+
+### To run this server:
+1. Install the required dependencies:
+   ```bash
+   pip install fastapi uvicorn pydantic
+   ```
+2. Start the server using:
+   ```bash
+   python server.py
+   ```
+3. Open your browser and navigate to `http://127.0.0.1:8000/docs` to interact with the auto-generated Swagger documentation.
+```
+*Why this is good: It is conversational, provides real-world functional code, reasons transparently, explains how to run the solution, and synthesizes context dynamically.*
+
+---
+
+## Suggested Libraries and Frameworks
+
+To implement this design, we will integrate these industry-standard libraries:
+
+| Layer | Recommended Library | Purpose |
+| :--- | :--- | :--- |
+| **API Backend** | `FastAPI` & `Uvicorn` | Asynchronous, high-performance web and WebSocket routing framework |
+| **Vector DB** | `ChromaDB` (or `FAISS-cpu`) | Embedded database optimized for dense embedding storage and rapid retrieval |
+| **Embeddings** | `SentenceTransformers` | Lightweight local embedding model (`all-MiniLM-L6-v2`) |
+| **Re-ranking** | `sentence-transformers/CrossEncoder` | Deep transformer re-ranking model for strict relevance matching |
+| **Local LLM Engine** | `Ollama` | Standard local inference engine for quantized models (`qwen2.5-coder`) |
+| **Remote Fallback** | `huggingface-hub` / `openai` | Secure remote API execution layer for serverless execution |
+
+---
+
+## Production-Grade Main Pipeline Pseudo-code
+
+The following pseudo-code outlines the redesigned unified asynchronous pipeline in `jarvis_ai/main_core.py`:
+
+```python
+import os
+import asyncio
+import logging
+from typing import AsyncGenerator, Dict, Any, List
+from dataclasses import dataclass
+
+from jarvis_ai.memory.manager import CognitiveMemoryManager
+from jarvis_ai.rag.vector_store import ModernRAGStore
+from jarvis_ai.agents.router import SemanticIntentRouter
+from jarvis_ai.models.ollama_client import OllamaLLMClient
+from jarvis_ai.utils.logger import get_logger
+
+logger = get_logger("JarvisCore")
+
+@dataclass
+class ChatSession:
+    session_id: str
+    user_id: str
+
+class UpgradedJarvisCore:
+    def __init__(self, workspace_path: str):
+        self.workspace = workspace_path
+        self.memory = CognitiveMemoryManager(db_path=os.path.join(workspace_path, "data", "database.db"))
+        self.rag = ModernRAGStore(workspace_path=workspace_path)
+        self.router = SemanticIntentRouter()
+        self.llm = OllamaLLMClient(model_name="qwen2.5-coder:7b-instruct")
+
+    async def initialize(self):
+        """Asynchronous startup of all search and DB engine handles."""
+        await asyncio.gather(
+            self.memory.init_db(),
+            self.rag.load_indices(),
+            self.llm.check_connection()
+        )
+        logger.info("Upgraded Jarvis AI core services initialized successfully.")
+
+    async def generate_response(
+        self, 
+        query: str, 
+        session: ChatSession
+    ) -> AsyncGenerator[str, None]:
+        """Unified entrypoint that streams answers naturally like ChatGPT."""
+        try:
+            # 1. Fetch short-term history context
+            history: List[Dict[str, str]] = await self.memory.get_short_term_context(session.session_id, limit=6)
+            
+            # 2. Dynamic Semantic Intent Routing
+            intent = await self.router.route(query, history)
+            logger.info(f"Routed intent: {intent.name} with confidence {intent.confidence}")
+
+            # 3. Handle Special Operations directly if needed (e.g., self-healing loops)
+            if intent.name == "testing":
+                yield "Initiating autonomous self-healing testing loop...\n"
+                # Executing testing flow in async executor
+                result = await self.execute_testing_flow(query)
+                yield result
+                return
+
+            # 4. Perform hybrid vector search + BM25
+            raw_docs = await self.rag.hybrid_search(query, limit=15)
+            
+            # 5. Apply Cross-Encoder re-ranking to isolate maximum relevance
+            compressed_context = await self.rag.rerank_documents(query, raw_docs, limit=4)
+
+            # 6. Assemble production system instructions and parameters
+            system_prompt = self._compile_system_instructions(compressed_context, history)
+
+            # 7. Execute Streaming LLM Generation
+            logger.info("Initiating LLM generation token stream...")
+            async for token in self.llm.stream_complete(system_prompt, query, history):
+                yield token
+
+            # 8. Extract background facts silently to update long-term episodic memory
+            asyncio.create_task(
+                self.memory.archive_interaction_async(session.session_id, query, self.llm.last_full_response)
+            )
+
+        except Exception as e:
+            logger.error(f"Error in main assistant pipeline: {str(e)}", exc_info=True)
+            yield f"\n[Jarvis Recovery Engine]: I encountered an unexpected error: {str(e)}. Attempting self-recovery..."
+
+    def _compile_system_instructions(self, context: str, history: List[Dict[str, str]]) -> str:
+        return f"""You are JARVIS, an elite conversational software engineer.
+        
+GUIDELINES:
+- Formulate answers that synthesize the relevant Context and History seamlessly.
+- DO NOT print raw vector scores, document indices, or trace coordinates.
+- Ensure any returned code blocks are fully complete and functional.
+- Maintain a helpful, highly professional persona.
+
+CONTEXT REFERENCE:
+{context}
+"""
+
+    async def execute_testing_flow(self, query: str) -> str:
+        # Runs testing agent framework asynchronously
+        await asyncio.sleep(1.0)
+        return "Autonomous Self-Healing Loop: Verified. Code builds and passes all tests successfully."

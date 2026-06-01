@@ -1,0 +1,1 @@
+Machine learning trains models from data so they can make predictions or decisions.

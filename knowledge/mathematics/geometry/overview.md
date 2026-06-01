@@ -1,0 +1,1 @@
+Geometry studies shapes, angles, area, perimeter, volume, and spatial relationships.

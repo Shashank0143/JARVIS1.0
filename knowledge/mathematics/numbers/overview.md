@@ -1,0 +1,1 @@
+Natural numbers, integers, rational numbers, and real numbers are number systems used for counting, measurement, and algebra.

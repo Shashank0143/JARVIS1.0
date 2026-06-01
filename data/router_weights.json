@@ -1,0 +1,14 @@
+{
+  "machine": 1.0,
+  "vision": 0.98,
+  "learn": 1.0,
+  "education": 0.98,
+  "deep_learning": 0.9,
+  "coding": 1.0,
+  "conversation": 1.0,
+  "agent": 0.7,
+  "knowledge": 1.0,
+  "security": 0.51,
+  "testing": 0.51,
+  "math": 0.77
+}

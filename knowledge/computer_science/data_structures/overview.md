@@ -1,0 +1,1 @@
+Data structures organize data for efficient access and modification.

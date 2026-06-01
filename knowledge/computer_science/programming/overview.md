@@ -1,0 +1,1 @@
+Programming means writing instructions that a computer can execute.

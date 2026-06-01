@@ -1,0 +1,6 @@
+requests>=2.34.0
+torch>=2.4.0
+numpy>=2.2.6
+opencv-python>=4.10.0
+pocketsphinx>=5.0.0
+datasets>=2.20.0

@@ -1,0 +1,1 @@
+Algebra uses variables and equations to represent unknown values and relationships.
