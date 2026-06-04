@@ -6,6 +6,7 @@ from pathlib import Path
 
 from jarvis_ai import JarvisCore, LocalCodingAssistant
 from jarvis_ai.dataset_importer import AiDatasetImporter
+from jarvis_ai.gpu import initialize_cuda, get_gpu_info
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -47,7 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Dataset folder. Defaults to datasets/training_corpus.",
     )
     train_neural.add_argument("--epochs", type=int, default=2)
-    train_neural.add_argument("--batch-size", type=int, default=8)
+    train_neural.add_argument("--batch-size", type=int, default=4, help="Batch size (default 4 for RTX 3050 Laptop, use 8-16 for desktop GPUs)")
     train_neural.add_argument("--steps-per-epoch", type=int, default=50)
     train_neural.add_argument("--learning-rate", type=float, default=3e-4)
 
@@ -75,7 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Curated corpus file or directory. Defaults to ./corpus.",
     )
     transformer.add_argument("--epochs", type=int, default=3)
-    transformer.add_argument("--batch-size", type=int, default=12)
+    transformer.add_argument("--batch-size", type=int, default=4, help="Batch size (default 4 for RTX 3050 Laptop with FP16 mixed precision)")
     transformer.add_argument("--steps-per-epoch", type=int, default=150)
     transformer.add_argument("--learning-rate", type=float, default=3e-4)
 
@@ -167,7 +168,7 @@ def run_jarvis(
     print("Greeting: Hello! I am Jarvis, your personal local assistant.")
     print("Capabilities:")
     print("  • Local RAG Knowledge & Document Indexing")
-    print("  • PyTorch Transformer Neural Model Training")
+    print("  • PyTorch Transformer Neural Model Training (GPU Accelerated)")
     print("  • Collaborative Multi-Agent Pipelines")
     print("  • AutoML Model Optimization")
     print("  • System Security Auditing & Code Vulnerability Scans")
@@ -200,6 +201,20 @@ def run_jarvis(
 
 
 def main() -> None:
+    # Initialize CUDA and GPU support at startup
+    print("\n" + "="*60)
+    print("Initializing GPU/CUDA support...")
+    initialize_cuda()
+    gpu_info = get_gpu_info()
+    if gpu_info.get("available"):
+        print(f"✓ GPU Training Enabled")
+        print(f"  Devices: {gpu_info.get('device_count')}")
+        for device in gpu_info.get("devices", []):
+            print(f"    - {device['name']} ({device['total_memory_gb']:.1f}GB)")
+    else:
+        print("ℹ CPU Mode (GPU not available)")
+    print("="*60 + "\n")
+    
     if len(sys.argv) == 1:
         run_jarvis(JarvisCore())
         return

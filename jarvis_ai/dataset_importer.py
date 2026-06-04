@@ -24,34 +24,56 @@ AIDATASET_SPECS = {
     "RayBoustany": DatasetSpec("RayBoustany","RayBoustany/1200_rows_dataset_siren_greetings_thanks_augmented"),
     "nabinnvidia-data": DatasetSpec("nabinnvidia", "nabinnvidia/multi-lingual-greetings", "data"),
     "nabinnvidia-chat_format": DatasetSpec("nabinnvidia", "nabinnvidia/multi-lingual-greetings", "chat_format"),
+
+    #Language
+    "cfilt": DatasetSpec("cfilt","cfilt/iitb-english-hindi"), #128Mb
+
     # Maths
     "gsm8k": DatasetSpec("gsm8k", "openai/gsm8k", "main"),
     "gsm8k-socratic": DatasetSpec("gsm8k-socratic", "openai/gsm8k", "socratic"),
-    "applied-ai-018": DatasetSpec("applied-ai-018","applied-ai-018/Mathematics"),
-    "premio-ai-dedup": DatasetSpec("premio-ai", "premio-ai/TheArabicPile_Mathematics", "dedup"),
-    "premio-ai-original": DatasetSpec("premio-ai", "premio-ai/TheArabicPile_Mathematics", "original"),
-    "ZixuanKe": DatasetSpec("ZixuanKe", "ZixuanKe/posttrain_tokenized_dm_mathematics_sup_qwen2.5_32b_instr"),
-    "learningarena": DatasetSpec("learningarena", "learningarena/Mathematics"),
-    "timaeus": DatasetSpec("timaeus","timaeus/dsir-pile-1m-filtered-no-github-or-dm_mathematics"),
+    "applied-ai-018": DatasetSpec("applied-ai-018","applied-ai-018/Mathematics"), #26Gb
+    "ZixuanKe": DatasetSpec("ZixuanKe", "ZixuanKe/posttrain_tokenized_dm_mathematics_sup_qwen2.5_32b_instr"), #4.11Gb
+    "learningarena": DatasetSpec("learningarena", "learningarena/Mathematics"), #182Mb
+    "timaeus": DatasetSpec("timaeus","timaeus/dsir-pile-1m-filtered-no-github-or-dm_mathematics"),#981Mb
 
     # Python
     "claude-opus": DatasetSpec("claude-opus", "Roman1111111/claude-opus-4.6-10000x"),
-    "syndata": DatasetSpec("syndata", "PsiBotAI/SynData"),
-    "swe-zero": DatasetSpec("swe-zero", "AlienKevin/SWE-ZERO-12M-trajectories"),
+    "syndata": DatasetSpec("syndata", "PsiBotAI/SynData"),#29.3Tb
+    "swe-zero": DatasetSpec("swe-zero", "AlienKevin/SWE-ZERO-12M-trajectories"),#Above 50Gb
     "zero-to-cad": DatasetSpec("zero-to-cad", "ADSKAILab/Zero-To-CAD-1m"),
     "open-mm-rl": DatasetSpec("open-mm-rl", "TuringEnterprises/Open-MM-RL"),
-    "physical-vantage-bench": DatasetSpec("physical-vantage-bench", "nvidia/PhysicalAI-VANTAGE-Bench","vqa","test"),
-    "3d-arena": DatasetSpec("3d-arena", "3d-arena/3d-arena"),
-    "h4iku": DatasetSpec("h4iku", "h4iku/coconut_javascript2010"),
+    "physical-vantage-bench": DatasetSpec("physical-vantage-bench", "nvidia/PhysicalAI-VANTAGE-Bench","vqa","test"),#21.7Gb
+    "3d-arena": DatasetSpec("3d-arena", "3d-arena/3d-arena"),#26.2Gb
+    "h4iku": DatasetSpec("h4iku", "h4iku/coconut_javascript2010"),#4.74Gb
+    "h4iku-preprocessed": DatasetSpec("h4iku-preprocessed", "h4iku-preprocessed/coconut_javascript2010_preprocessed"),#404Mb
     "iamtarun": DatasetSpec("iamtarun", "iamtarun/python_code_instructions_18k_alpaca"),
     "dylanhogg": DatasetSpec("dylanhogg","dylanhogg/awesome-python"),
-    "Jackrong": DatasetSpec("Jackrong", "Jackrong/Competitive-Programming-python-blend"),
+    "Jackrong": DatasetSpec("Jackrong", "Jackrong/Competitive-Programming-python-blend"),#5.97Gb
     "gss1147": DatasetSpec("gss1147", "gss1147/god_level_python_dataset_25k"),
-    "Fraser": DatasetSpec("Fraser", "Fraser/python-state-changes"),
-    "sia-precision-education": DatasetSpec("sia-precision-education", "sia-precision-education/pile_python"),
-    "h4iku-python": DatasetSpec("h4iku","h4iku/coconut_python2010"),
-    "angie-chen55": DatasetSpec("angie-chen55","angie-chen55/python-github-code")
+    "Fraser": DatasetSpec("Fraser", "Fraser/python-state-changes"),#1.21Gb
+    "sia-precision-education": DatasetSpec("sia-precision-education", "sia-precision-education/pile_python"),#4.34GB
+    "angie-chen55": DatasetSpec("angie-chen55","angie-chen55/python-github-code"),#20.2Gb
 
+    #OpenAi
+    "openai": DatasetSpec("openai","openai/gsm8k","main"),
+    "openai-socratic": DatasetSpec("openai-socratic","openai/gsm8k","socratic"),
+    "openai-axis": DatasetSpec("openai-axis","openai/summarize_from_feedback","axis"),
+    "openai-comparisons": DatasetSpec("openai-comparisons","openai/summarize_from_feedback","comparisons"),
+    "CarperAI": DatasetSpec("CarperAI","CarperAI/openai_summarize_tldr"), #123Mb
+    "CarperAI-comparisons": DatasetSpec("CarperAI-comparisons","CarperAI/openai_summarize_comparisons"),
+    "Birchlabs-best": DatasetSpec("Birchlabs-best","Birchlabs/openai-prm800k-phase2_test-stepwise-best"),
+    "Birchlabs-critique": DatasetSpec("Birchlabs-critique","Birchlabs/openai-prm800k-phase2_test-stepwise-critique"),
+    "EleutherAI": DatasetSpec("EleutherAI","EleutherAI/lambada_openai"),
+    "EleutherAI-de": DatasetSpec("EleutherAI-de","EleutherAI/lambada_openai","de"),
+    "EleutherAI-en": DatasetSpec("EleutherAI-en","EleutherAI/lambada_openai","en"),
+    "openai-webgpt": DatasetSpec("openai-webgpt","openai/webgpt_comparisons"),
+    "rubend18": DatasetSpec("rubend18","rubend18/DALL-E-Prompts-OpenAI-ChatGPT"),
+    "carlosejimenez": DatasetSpec("carlosejimenez","carlosejimenez/wikitext-103-raw-v1_sents_min_len10_max_len30_openai_clip-vit-base-patch32"), #5.29Gb
+    "sl-alex": DatasetSpec("sl-alex","sl-alex/openai-prm800k-solutions-only"),
+
+    #Claude
+    "Roman1111111-claude-sonnet": DatasetSpec("Roman1111111-claude-sonnet","Roman1111111/claude-sonnet-4.6-120000x"),
+    "AnodeAI": DatasetSpec("AnodeAI","AnodeAI/ClaudeOpus4.6_promots"),
 }
 
 

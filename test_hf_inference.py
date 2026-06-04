@@ -1,8 +1,10 @@
+from dotenv import load_dotenv
 import os
 import requests
+load_dotenv()  # Load environment variables from .env files
 
 def test_debug():
-    token = ""
+    token = os.getenv("HUGGING_TOKEN")
     api_url = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-Coder-7B-Instruct"
     headers = {"Authorization": f"Bearer {token}"}
     payload = {

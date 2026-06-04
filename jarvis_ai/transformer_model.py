@@ -8,6 +8,16 @@ from pathlib import Path
 from typing import Any
 
 from .text import tokenize
+from .gpu import (
+    get_device,
+    initialize_cuda,
+    print_gpu_memory,
+    clear_gpu_cache,
+    enable_mixed_precision,
+    get_mixed_precision_scaler,
+    get_optimal_batch_size,
+    is_rtx_3050,
+)
 
 try:
     import torch
@@ -26,7 +36,8 @@ class TransformerConfig:
     heads: int = 6
     layers: int = 4
     dropout: float = 0.1
-    max_vocab: int = 12000
+    # Medium token vocabulary size: 8,000-16,000
+    max_vocab: int = 16000
 
 
 class CodeTokenizer:
@@ -224,7 +235,16 @@ class LocalTransformerCodeModel:
         if len(token_ids) < self.config.block_size + 2:
             raise ValueError("Corpus is too small for transformer training.")
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        # Initialize CUDA and get device
+        initialize_cuda()
+        device = get_device()
+        print(f"Training on device: {device}")
+        
+        # Check if RTX 3050 and use mixed precision
+        use_mixed_precision = is_rtx_3050()
+        if use_mixed_precision:
+            print("✓ RTX 3050 detected - using FP16 mixed precision for faster training")
+        
         model = TinyTransformerLM(len(self.tokenizer), self.config).to(device)
 
         if self.model_path.exists():
@@ -236,25 +256,56 @@ class LocalTransformerCodeModel:
                 print(f"Could not load existing weights for fine-tuning ({exc}). Training from scratch.")
 
         optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+        scaler = get_mixed_precision_scaler() if use_mixed_precision else None
+        autocast_context = enable_mixed_precision() if use_mixed_precision else None
+        
         data = torch.tensor(token_ids, dtype=torch.long, device=device)
         losses: list[float] = []
 
+        print_gpu_memory("Initial")
+        
         model.train()
-        for _ in range(epochs):
-            for _ in range(steps_per_epoch):
+        for epoch in range(epochs):
+            for step in range(steps_per_epoch):
                 starts = torch.randint(0, len(data) - self.config.block_size - 1, (batch_size,), device=device)
                 x = torch.stack([data[start : start + self.config.block_size] for start in starts])
                 y = torch.stack([data[start + 1 : start + self.config.block_size + 1] for start in starts])
-                logits = model(x)
-                loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), y.reshape(-1))
+                
                 optimizer.zero_grad(set_to_none=True)
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
-                losses.append(float(loss.detach().cpu()))
-
+                
+                # Use mixed precision if available
+                if use_mixed_precision and scaler and autocast_context:
+                    with autocast_context:
+                        logits = model(x)
+                        loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), y.reshape(-1))
+                    scaler.scale(loss).backward()
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    logits = model(x)
+                    loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), y.reshape(-1))
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                    optimizer.step()
+                
+                loss_val = float(loss.detach().cpu())
+                losses.append(loss_val)
+                
+                # Print progress every 25 steps
+                if (step + 1) % 25 == 0:
+                    avg_recent_loss = sum(losses[-25:]) / len(losses[-25:])
+                    print(f"Epoch {epoch + 1}/{epochs} | Step {step + 1}/{steps_per_epoch} | Loss: {avg_recent_loss:.4f}")
+        
+        # Clear cache before final model
+        clear_gpu_cache()
+        
         self.model = model.eval()
         self._save_model()
+        
+        print_gpu_memory("Final")
+        
         avg_loss = sum(losses[-min(len(losses), 50) :]) / min(len(losses), 50)
         return {
             "tokens": len(token_ids),
@@ -267,12 +318,14 @@ class LocalTransformerCodeModel:
     def complete(self, prompt: str, *, max_tokens: int = 180, temperature: float = 0.7) -> str:
         if torch is None or not self.trained:
             return ""
+        
         device = next(self.model.parameters()).device
         ids = self.tokenizer.encode(prompt)[-self.config.block_size :]
         input_ids = torch.tensor([ids], dtype=torch.long, device=device)
 
         self.model.eval()
         generated: list[int] = []
+        
         with torch.no_grad():
             for _ in range(max_tokens):
                 window = input_ids[:, -self.config.block_size :]
@@ -286,13 +339,15 @@ class LocalTransformerCodeModel:
                     [input_ids, torch.tensor([[next_id]], dtype=torch.long, device=device)],
                     dim=1,
                 )
+        
         return self.tokenizer.decode(generated)
 
     def _load_model(self) -> None:
-        checkpoint = torch.load(self.model_path, map_location="cpu")
+        device = get_device()
+        checkpoint = torch.load(self.model_path, map_location=device)
         model = TinyTransformerLM(len(self.tokenizer), self.config)
         model.load_state_dict(checkpoint["model"])
-        self.model = model.eval()
+        self.model = model.to(device).eval()
 
     def _save_model(self) -> None:
         self.model_path.parent.mkdir(parents=True, exist_ok=True)

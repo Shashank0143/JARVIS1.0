@@ -1,5 +1,6 @@
 from __future__ import annotations
-
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env files
 import json
 import random
 from collections import Counter, defaultdict
@@ -148,7 +149,7 @@ class HybridLocalCodeModel:
         import os
         import requests
         
-        token = os.environ.get("HF_TOKEN", "")
+        token = os.environ.get("HF_TOKEN", os.getenv("HUGGING_TOKEN"))
         if token:
             try:
                 # We use Qwen/Qwen2.5-Coder-7B-Instruct as it is incredibly good at coding & general chats

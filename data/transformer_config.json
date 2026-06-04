@@ -1,0 +1,8 @@
+{
+  "block_size": 128,
+  "embedding_size": 192,
+  "heads": 6,
+  "layers": 4,
+  "dropout": 0.1,
+  "max_vocab": 12000
+}
