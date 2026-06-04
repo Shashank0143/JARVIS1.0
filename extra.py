@@ -1,5 +1,11 @@
-import torch_directml
+import sys
+import torch
 
-device = torch_directml.device()
+print("Python:", sys.executable)
+print("Torch:", torch.__version__)
+print("CUDA Version:", torch.version.cuda)
+print("CUDA Available:", torch.cuda.is_available())
+print("Device Count:", torch.cuda.device_count())
 
-print("GPU Working:", device)
+if torch.cuda.is_available():
+    print("GPU:", torch.cuda.get_device_name(0))

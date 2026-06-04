@@ -14,7 +14,8 @@ htmlcov/
 .venv/
 venv/
 env/
-
+.env
+*.env
 # Generated/local datasets
 datasets/training_corpus/aidataset/
 datasets/training_corpus/**/__pycache__/

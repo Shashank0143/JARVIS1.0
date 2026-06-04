@@ -1,14 +1,16 @@
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
 import os
 
-os.environ["HF_TOKEN"] = ""
+os.environ["HF_TOKEN"] = os.getenv("HUGGING_TOKEN")
 
 from jarvis_ai.dataset_importer import AiDatasetImporter
 from jarvis_ai import LocalCodingAssistant
 
 def main():
     datasets = [
-        "SAGI-1"
+        "openai",
     ]
     
     print("Importing datasets...")
@@ -21,7 +23,7 @@ def main():
     assistant = LocalCodingAssistant()
     stats = assistant.train_transformer_corpus(
         Path("datasets/training_corpus"),
-        epochs=3,
+        epochs=10,
         batch_size=12,
         learning_rate=3e-4,
         steps_per_epoch=150,

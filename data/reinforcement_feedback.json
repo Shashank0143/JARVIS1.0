@@ -70,3 +70,12 @@
 {"timestamp": "2026-06-01T19:07:49.679935", "command": "write database sql schema for users", "intent": "coding", "reward": 1.0}
 {"timestamp": "2026-06-01T19:08:24.190515", "command": "can you write a code, basic python code", "intent": "coding", "reward": 1.0}
 {"timestamp": "2026-06-01T19:08:24.209918", "command": "create basic code for frontend backend and database", "intent": "coding", "reward": 1.0}
+{"timestamp": "2026-06-02T10:08:55.167631", "command": "hello", "intent": "conversation", "reward": 0.2}
+{"timestamp": "2026-06-02T10:09:05.437731", "command": "good morning jarvis", "intent": "conversation", "reward": 0.2}
+{"timestamp": "2026-06-02T10:09:19.574167", "command": "i said good morning", "intent": "knowledge", "reward": 0.2}
+{"timestamp": "2026-06-02T10:09:26.570948", "command": "waht is this", "intent": "knowledge", "reward": 0.2}
+{"timestamp": "2026-06-02T10:09:33.176245", "command": "what are you dinig", "intent": "conversation", "reward": 0.2}
+{"timestamp": "2026-06-03T18:03:28.641030", "command": "hello", "intent": "conversation", "reward": 0.2}
+{"timestamp": "2026-06-03T18:03:45.824923", "command": "1 + 2", "intent": "math", "reward": 0.2}
+{"timestamp": "2026-06-03T18:04:58.038330", "command": "how is the day", "intent": "knowledge", "reward": 0.2}
+{"timestamp": "2026-06-03T18:05:37.886799", "command": "good afternoon", "intent": "knowledge", "reward": 0.2}

@@ -1,4 +1,8 @@
 requests>=2.34.0
+# PyTorch with CUDA support - Install based on your system:
+# For NVIDIA GPU (CUDA 12.1): pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# For NVIDIA GPU (CUDA 11.8): pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# For CPU only: pip install torch torchvision torchaudio
 torch>=2.4.0
 numpy>=2.2.6
 opencv-python>=4.10.0
