@@ -4,6 +4,8 @@ load_dotenv()  # Load environment variables from .env files
 import json
 import random
 from collections import Counter, defaultdict
+
+load_dotenv()  # Load environment variables from .env file
 from pathlib import Path
 
 from .text import tokenize
